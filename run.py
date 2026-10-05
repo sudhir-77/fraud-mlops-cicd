@@ -6,6 +6,7 @@ import argparse
 import gc
 import json
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -49,19 +50,24 @@ def main(argv: list[str] | None = None) -> int:
     metrics = run_pipeline(root, quick=args.quick, device=args.device)
     coverage = None
     if not args.quick:
+        # A fresh interpreter so coverage starts before src is imported.
+        # In-process pytest cannot instrument modules this run already loaded.
         gc.collect()
-        import pytest
-
         cov_path = root / "results" / "coverage.json"
-        status = pytest.main(
+        status = subprocess.run(
             [
+                sys.executable,
+                "-m",
+                "pytest",
                 str(root / "tests"),
                 "-q",
                 "--cov=src",
                 "--cov-report=term-missing",
                 f"--cov-report=json:{cov_path}",
-            ]
-        )
+            ],
+            cwd=root,
+            check=False,
+        ).returncode
         if not cov_path.exists():
             raise RuntimeError(f"pytest did not write coverage (exit {status})")
         coverage = _coverage_percent(cov_path)
