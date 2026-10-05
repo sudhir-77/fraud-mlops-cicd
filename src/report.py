@@ -133,9 +133,9 @@ def write_resume_notes(path: Path, metrics: dict) -> None:
             "",
             (
                 "This project simulates 12 weeks of card payments with card testing, account takeover, "
-                "mule merchants, and shared-device fraud. It builds point-in-time SQL features, trains "
-                "a LightGBM scorer against hand-written rules, serves scores with SHAP reason codes, "
-                "and checks a later week for population drift."
+                "mule merchants, and shared-device fraud, plus legitimate lookalikes and label noise. "
+                "It builds point-in-time SQL features, trains a LightGBM scorer against hand-written rules, "
+                "serves scores with SHAP reason codes, and checks a later week for population drift."
             ),
             "",
             (

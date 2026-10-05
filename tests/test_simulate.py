@@ -47,6 +47,24 @@ def test_quick_simulation_invariants() -> None:
     assert (gaps.dropna() <= 120).any()
 
 
+def test_fraud_overlaps_legitimate_behavior() -> None:
+    config = quick_config()
+    frame, mule_ids = simulate(config)
+    mule_set = set(int(v) for v in np.asarray(mule_ids))
+    legit = frame["is_fraud"] == 0
+    fraud = frame["is_fraud"] == 1
+    legit_merchants = set(frame.loc[legit, "merchant_id"].astype(int))
+    assert mule_set & legit_merchants
+    fraud_merchants = set(frame.loc[fraud, "merchant_id"].astype(int))
+    assert fraud_merchants - mule_set
+    legit_devices = set(frame.loc[legit, "device_id"].astype(int))
+    fraud_devices = set(frame.loc[fraud, "device_id"].astype(int))
+    assert legit_devices & fraud_devices
+    # Disputes: labeled fraud with no injected pattern. Delayed chargebacks keep a pattern.
+    assert int(((frame["is_fraud"] == 1) & (frame["fraud_type"] == 0)).sum()) > 0
+    assert int(((frame["is_fraud"] == 0) & (frame["fraud_type"] != 0)).sum()) > 0
+
+
 def test_simulation_is_reproducible() -> None:
     config = quick_config()
     first, _ = simulate(config)
@@ -64,7 +82,7 @@ def test_parquet_checksum_and_row_count(tmp_path) -> None:
     )
     path = tmp_path / "transactions.parquet"
     write_transactions(frame, path)
-    assert verify_transactions(path, 2) 
+    assert verify_transactions(path, 2)
     checksum = tmp_path / "transactions.parquet.sha256"
     checksum.write_text("deadbeef\n", encoding="utf-8")
     try:

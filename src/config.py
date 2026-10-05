@@ -119,6 +119,6 @@ def train_config_for(quick: bool) -> TrainConfig:
         min_child_samples=80,
         learning_rate=0.08,
         early_stopping_rounds=15,
-        load_seconds=4,
+        load_seconds=60,
         shap_rows=800,
     )

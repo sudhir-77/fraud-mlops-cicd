@@ -6,8 +6,16 @@ from pathlib import Path
 
 import pandas as pd
 
+from src.config import train_config_for
 from src.metrics import pr_auc
 from src.pipeline import run_pipeline
+
+
+def test_full_load_test_covers_at_least_one_minute() -> None:
+    cfg = train_config_for(False)
+    assert cfg.load_rps == 50
+    assert cfg.load_seconds >= 60
+    assert cfg.load_rps * cfg.load_seconds >= 3000
 
 
 def test_quick_pipeline(tmp_path: Path) -> None:

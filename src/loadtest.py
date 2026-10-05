@@ -27,8 +27,8 @@ def summarize_latencies(latencies_ms: np.ndarray) -> dict[str, float]:
 
 
 async def _collect(url: str, payloads: list[dict], rps: int, seconds: int) -> np.ndarray:
-    timeout = httpx.Timeout(5.0)
-    limits = httpx.Limits(max_connections=100, max_keepalive_connections=50)
+    timeout = httpx.Timeout(10.0)
+    limits = httpx.Limits(max_connections=64, max_keepalive_connections=32)
     n = rps * seconds
     interval = 1.0 / rps
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
@@ -49,7 +49,12 @@ async def _collect(url: str, payloads: list[dict], rps: int, seconds: int) -> np
             return elapsed_ms
 
         start = time.perf_counter()
-        latencies = await asyncio.gather(*[one(i) for i in range(n)])
+        latencies: list[float] = []
+        # One second of in-flight tasks at a time, still paced at `rps` from `start`.
+        for begin in range(0, n, rps):
+            end = min(begin + rps, n)
+            batch = await asyncio.gather(*[one(i) for i in range(begin, end)])
+            latencies.extend(batch)
     return np.asarray(latencies, dtype=np.float64)
 
 

@@ -17,7 +17,7 @@ Skills/tools this project demonstrates: Python, SQL, ETL, Feature Engineering, C
 ## Data
 
 - **Dataset:** Simulated payment transactions (generator included; design follows the published PaySim/BankSim approach) — n/a (generated locally by src/simulate.py)
-- **License/terms:** MIT (own code)
+- **License/terms:** MIT. The generator and the synthetic records are project code under the MIT License.
 - **Size used:** 3M transactions over 12 weeks, ~150k customers, ~1.2% fraud
 - **Plan:** Out-of-time split (weeks 1-8 train, 9 validation, 10-12 test/monitoring); week 11 gets an injected fraud-pattern shift.
 
