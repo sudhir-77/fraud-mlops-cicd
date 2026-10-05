@@ -61,7 +61,10 @@ def test_threshold_finds_zero_cost() -> None:
     y_true = np.array([0, 0, 1, 1])
     scores = np.array([0.1, 0.4, 0.6, 0.9])
     threshold, cost = select_threshold(y_true, scores, cost_fp=1.0, cost_fn=1.0)
+    again, again_cost = select_threshold(y_true, scores, cost_fp=1.0, cost_fn=1.0)
     assert cost == 0.0
+    assert threshold == again
+    assert cost == again_cost
     assert expected_cost(y_true, scores, threshold, 1.0, 1.0) == 0.0
     assert 0.4 < threshold <= 0.6
 

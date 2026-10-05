@@ -39,9 +39,12 @@ def train_model(
         "bagging_seed": SEED,
         "feature_fraction_seed": SEED,
         "data_random_seed": SEED,
-        "num_threads": 4,
+        # One thread plus deterministic=True. Several threads still reshuffle
+        # histogram reductions, and the cost threshold then moves between runs.
+        "num_threads": 1,
         "deterministic": True,
         "force_row_wise": True,
+        "feature_pre_filter": False,
     }
     dtrain = lgb.Dataset(
         x_train,

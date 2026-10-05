@@ -76,9 +76,11 @@ def _load_matrix(
             SELECT txn_id, week, day, is_fraud, {columns}
             FROM features
             WHERE week = ?
+            ORDER BY txn_id
             """,
             [int(week)],
         ).fetchdf()
+        frame = frame.sort_values("txn_id", kind="mergesort")
         frames_x.append(frame[feature_names].to_numpy(dtype=np.float32))
         frames_y.append(frame["is_fraud"].to_numpy(dtype=np.int8))
         metas.append(frame[["txn_id", "week", "day"]].copy())
@@ -109,7 +111,7 @@ def _score_matrix(booster, params, matrix: np.ndarray) -> tuple[np.ndarray, np.n
     velocity = matrix[:, MODEL_FEATURES.index("cust_txn_count_1h")]
     is_new = matrix[:, MODEL_FEATURES.index("is_new_device")]
     baseline = rule_scores(amount, velocity, is_new, params)
-    model = booster.predict(matrix, num_threads=4)
+    model = booster.predict(matrix, num_threads=1)
     return np.asarray(model, dtype=np.float64), np.asarray(baseline, dtype=np.float64)
 
 
@@ -120,7 +122,7 @@ def _shap_importance(booster, sample: np.ndarray) -> np.ndarray:
     values = explainer.shap_values(sample)
     importance = mean_abs_shap(values)
     if importance.shape[0] != sample.shape[1]:
-        contrib = booster.predict(sample, pred_contrib=True, num_threads=4)
+        contrib = booster.predict(sample, pred_contrib=True, num_threads=1)
         importance = np.mean(np.abs(contrib[:, :-1]), axis=0)
     return importance
 
@@ -233,7 +235,7 @@ def run_pipeline(
         trained.save_model(str(model_file))
         booster = lgb.Booster(model_file=str(model_file))
         probe = x_val[: min(8, len(x_val))]
-        if np.max(np.abs(trained.predict(probe) - booster.predict(probe))) > 1e-5:
+        if np.max(np.abs(trained.predict(probe, num_threads=1) - booster.predict(probe, num_threads=1))) > 1e-5:
             raise RuntimeError("reloaded model scores do not match the trained booster")
         del trained
         val_model, val_base = _score_matrix(booster, rule_params, x_val)

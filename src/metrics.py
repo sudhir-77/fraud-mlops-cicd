@@ -73,19 +73,34 @@ def select_threshold(
     cost_fp: float,
     cost_fn: float,
 ) -> tuple[float, float]:
-    """Lowest expected cost on the rows provided. Ties keep the higher threshold."""
+    """Lowest expected cost on a fixed probability grid.
+
+    Candidates are k/5000 and do not depend on the score values, so a small
+    change in a quantile cannot move the reported threshold. When several grid
+    points share that minimum cost, the midpoint of the tied run is returned.
+    """
     scores = np.asarray(scores, dtype=np.float64)
+    y_true = np.asarray(y_true).astype(np.int8, copy=False)
     if scores.size == 0:
         raise ValueError("no scores")
-    candidates = np.unique(np.quantile(scores, np.linspace(0.50, 0.999, 200)))
-    best_t = float(candidates[-1])
-    best_c = math.inf
-    for threshold in candidates:
-        cost = expected_cost(y_true, scores, float(threshold), cost_fp, cost_fn)
-        if cost < best_c or (cost == best_c and float(threshold) > best_t):
-            best_c = cost
-            best_t = float(threshold)
-    return best_t, float(best_c)
+    n_steps = 5000
+    candidates = np.arange(n_steps + 1, dtype=np.float64) / float(n_steps)
+    y_pos = y_true == 1
+    y_neg = ~y_pos
+    n_pos = int(np.count_nonzero(y_pos))
+    costs = np.empty(candidates.shape[0], dtype=np.float64)
+    chunk = 100
+    for start in range(0, candidates.shape[0], chunk):
+        grid = candidates[start : start + chunk]
+        pred = scores >= grid[:, None]
+        fp = np.count_nonzero(pred & y_neg, axis=1)
+        tp = np.count_nonzero(pred & y_pos, axis=1)
+        fn = n_pos - tp
+        costs[start : start + chunk] = cost_fp * fp + cost_fn * fn
+    min_cost = float(costs.min())
+    tied = np.flatnonzero(costs == min_cost)
+    chosen = int(tied[tied.size // 2])
+    return float(candidates[chosen]), min_cost
 
 
 def psi_from_counts(reference_counts: np.ndarray, actual_counts: np.ndarray) -> float:
