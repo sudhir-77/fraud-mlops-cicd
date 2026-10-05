@@ -67,7 +67,28 @@ Patterns: card testing (small repeated amounts), account takeover (new device an
 Figures below are written by `python run.py` from `results/metrics.json`.
 
 <!-- RESULTS:START -->
-Run `python run.py` to fill this table.
+| Criterion | Value | Op | Threshold | Passed |
+| --- | --- | --- | --- | --- |
+| Test PR-AUC (weeks 10-12) | 0.9977917996038129 | >= | 0.6 | yes |
+| Test PR-AUC lift vs rules baseline | 2.61655304547863 | >= | 1.5 | yes |
+| Recall at 1% alert rate | 0.8262222222222222 | >= | 0.7 | yes |
+| API p95 latency at 50 RPS | 4.343855008482933 | < | 50.0 | yes |
+| Drift detection | 1.0 | >= | 1.0 | yes |
+| Point-in-time correctness | 0.0 | <= | 0.0 | yes |
+| Test coverage of src/ | 90.9982174688057 | >= | 80.0 | yes |
+
+Headline figures stored in `metrics.headline`:
+
+| Figure | Value |
+| --- | --- |
+| n_transactions | 3000000 |
+| test_pr_auc | 0.9978 |
+| pr_auc_lift | 2.62 |
+| recall_at_1pct | 0.8262 |
+| p95_ms | 4.34 |
+| week_11_max_psi | 20.9958 |
+
+All success criteria passed.
 <!-- RESULTS:END -->
 
 Plots: `results/pr_curve.png`, `results/shap_importance.png`, `results/drift_psi.png`, `results/score_by_week.png`.
