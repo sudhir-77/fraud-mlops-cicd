@@ -3,7 +3,7 @@
   "success_criteria": [
     {
       "name": "Test PR-AUC (weeks 10-12)",
-      "value": 0.9977917996038129,
+      "value": 0.8128796984692183,
       "op": ">=",
       "threshold": 0.6,
       "threshold_high": null,
@@ -11,7 +11,7 @@
     },
     {
       "name": "Test PR-AUC lift vs rules baseline",
-      "value": 2.61655304547863,
+      "value": 2.752511100707149,
       "op": ">=",
       "threshold": 1.5,
       "threshold_high": null,
@@ -19,7 +19,7 @@
     },
     {
       "name": "Recall at 1% alert rate",
-      "value": 0.8262222222222222,
+      "value": 0.713,
       "op": ">=",
       "threshold": 0.7,
       "threshold_high": null,
@@ -27,7 +27,7 @@
     },
     {
       "name": "API p95 latency at 50 RPS",
-      "value": 4.343855008482933,
+      "value": 4.34329500858439,
       "op": "<",
       "threshold": 50.0,
       "threshold_high": null,
@@ -51,7 +51,7 @@
     },
     {
       "name": "Test coverage of src/",
-      "value": 90.9982174688057,
+      "value": 90.56304520222047,
       "op": ">=",
       "threshold": 80.0,
       "threshold_high": null,
@@ -60,14 +60,14 @@
   ],
   "metrics": {
     "model": {
-      "test_pr_auc": 0.9977917996038129,
-      "val_pr_auc": 0.9971156187465828,
-      "test_recall_at_1pct_alert": 0.8262222222222222,
-      "threshold": 0.013693244740535255,
-      "val_expected_cost": 1925.0,
+      "test_pr_auc": 0.8128796984692183,
+      "val_pr_auc": 0.8256610606340854,
+      "test_recall_at_1pct_alert": 0.713,
+      "threshold": 0.9602,
+      "val_expected_cost": 28350.0,
       "cost_fp": 5.0,
       "cost_fn": 100.0,
-      "num_trees": 79,
+      "num_trees": 28,
       "best_iteration": -1
     },
     "drift": {
@@ -78,19 +78,19 @@
       "week_12_alert": 0,
       "week_11_max_psi": 20.99578140342701,
       "week_11_max_feature": "acq_region",
-      "fraud_mix_chi2_week10_vs_week11": 700.0
+      "fraud_mix_chi2_week10_vs_week11": 682.415766265646
     },
     "serving": {
-      "p50_ms": 3.256900003179908,
-      "p95_ms": 4.343855008482933,
-      "max_ms": 11.51509999181144,
+      "p50_ms": 3.2383000070694834,
+      "p95_ms": 4.34329500858439,
+      "max_ms": 34.88270001253113,
       "rps": 50,
-      "seconds": 4,
-      "n_requests": 200,
+      "seconds": 60,
+      "n_requests": 3000,
       "mlflow_model": "fraud_payment_scorer",
-      "mlflow_version": "2",
+      "mlflow_version": "3",
       "mlflow_stage": "Production",
-      "mlflow_run_id": "52a329478cff481698eaeb84aaabfcfd",
+      "mlflow_run_id": "d2ae6fa40fb344ec8e6dd7852ce99295",
       "promotion": [
         "Staging",
         "Production"
@@ -98,9 +98,9 @@
     },
     "headline": {
       "n_transactions": 3000000,
-      "test_pr_auc": 0.9978,
-      "pr_auc_lift": 2.62,
-      "recall_at_1pct": 0.8262,
+      "test_pr_auc": 0.8129,
+      "pr_auc_lift": 2.75,
+      "recall_at_1pct": 0.713,
       "p95_ms": 4.34,
       "week_11_max_psi": 20.9958
     },
@@ -114,15 +114,15 @@
       "quick": 0
     },
     "pytest_exit_code": 0,
-    "coverage_percent": 90.9982174688057
+    "coverage_percent": 90.56304520222047
   },
   "baseline": {
-    "test_pr_auc": 0.381338265367096,
-    "test_recall_at_1pct_alert": 0.37422222222222223,
+    "test_pr_auc": 0.29532295010922244,
+    "test_recall_at_1pct_alert": 0.37822222222222224,
     "rules": {
-      "amount_threshold": 111.97204360961912,
+      "amount_threshold": 494.48683258056644,
       "velocity_threshold": 2.0,
-      "new_device_amount_threshold": 60.67473907470704
+      "new_device_amount_threshold": 63.1740303039551
     }
   },
   "splits": {
@@ -141,7 +141,7 @@
     "gpu": null,
     "python": "3.12.10",
     "os": "Windows-11-10.0.26200-SP0",
-    "peak_rss_gb": 1.3738
+    "peak_rss_gb": 1.3919
   },
-  "runtime_seconds": 84.985
+  "runtime_seconds": 147.213
 }

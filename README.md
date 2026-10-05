@@ -50,17 +50,21 @@ Out-of-time split: weeks 1-8 train, week 9 validation, weeks 10-12 test. `data/s
 
 Feature SQL uses `RANGE ... 1 MICROSECOND PRECEDING` or `ROWS ... 1 PRECEDING`, so the current transaction and anything later are excluded. Merchant risk is the fraud rate of earlier transactions at that merchant over the previous 7 days. A lifetime count would rise every week and trip the drift rule on a stable book. Device reuse is the number of distinct customers seen on the device before this event. Tests compare a 5-row example to hand-computed values and append a future event to prove past features do not move.
 
-The rules baseline is only high amount, 1-hour velocity, and new device combined with high amount. LightGBM also sees merchant risk and device reuse, which is where the lift should come from: mule purchases and shared-device fraud do not trip those rules.
+The rules baseline is only high amount, 1-hour velocity, and new device combined with high amount. LightGBM also sees merchant risk and device reuse. Those signals are diluted on purpose: mule merchants and farm devices carry legitimate volume, some fraud uses a known device and a popular merchant, and legitimate bursts and large tickets exist. A small share of fraud labels are withheld as delayed chargebacks, and the same number of ordinary purchases are marked fraud.
 
 Week 11 keeps the same fraud rate but moves the mix toward card testing and device farms. It also sets `acq_region` to 0 for every row. Other weeks spread region evenly across 0-4. That column is monitored and is not a model feature, so a routing change can trip PSI without rewriting the score. The reference window is validation week 9, the last week before the test period. An alert is PSI > 0.2 on any monitored feature or on the score.
 
-The API loads the saved booster and returns LightGBM's probability plus the three largest TreeSHAP contributions (`pred_contrib`). A separate SHAP `TreeExplainer` pass writes the importance plot. The load test sends 50 requests per second to a local uvicorn process after a short warmup. The scoring process uses one thread because a single-row tree is faster that way. The latency file is `results/loadtest_latencies.csv`, and p95 is the 95th percentile of those client-observed times.
+The API loads the saved booster and returns LightGBM's probability plus the three largest TreeSHAP contributions (`pred_contrib`). A separate SHAP `TreeExplainer` pass writes the importance plot. `python run.py` sends 50 requests per second for 60 seconds (3,000 requests) to a local uvicorn process after a short warmup. `--quick` uses the same client for 1 second. The scoring process uses one thread because a single-row tree is faster that way, and training also uses one thread so the cost threshold does not move between runs. The latency file is `results/loadtest_latencies.csv`, and p95 is the 95th percentile of those client-observed times.
 
 ## Dataset
 
-Transactions are simulated in `src/simulate.py` (MIT, this repository). The generator is in the spirit of PaySim and BankSim: entity ids, amounts, and injected fraud labels, produced locally rather than downloaded. The run writes `data/transactions.parquet`, a SHA-256 sidecar, and checks the checksum and row count before training. `data/` is git-ignored.
+Source: synthetic card payments generated locally by `src/simulate.py`. No external file is downloaded. The generator follows the spirit of PaySim and BankSim (entity ids, amounts, and injected fraud labels).
 
-Patterns: card testing (small repeated amounts), account takeover (new device and a large amount), mule merchants (ordinary amounts at merchants that already have prior fraud), and device farms (many customers on a few devices). About 1.2% of rows are fraud. A small number of legitimate purchases sit on mule merchants, and about 4% of legitimate amounts are large bills, so amount alone is a weak rule.
+License: MIT. The generator and the synthetic records it writes are part of this repository and are released under the MIT License.
+
+The run writes `data/transactions.parquet`, a SHA-256 sidecar, and checks the checksum and row count before training. `data/` is git-ignored.
+
+Patterns: card testing, account takeover, mule merchants, and device farms, mixed with legitimate traffic on the same merchants and devices. About 1.2% of rows are labeled fraud. A share of real fraud is left unlabeled (delayed chargebacks) and a matching share of ordinary purchases is labeled fraud.
 
 ## Results
 
@@ -69,22 +73,22 @@ Figures below are written by `python run.py` from `results/metrics.json`.
 <!-- RESULTS:START -->
 | Criterion | Value | Op | Threshold | Passed |
 | --- | --- | --- | --- | --- |
-| Test PR-AUC (weeks 10-12) | 0.9977917996038129 | >= | 0.6 | yes |
-| Test PR-AUC lift vs rules baseline | 2.61655304547863 | >= | 1.5 | yes |
-| Recall at 1% alert rate | 0.8262222222222222 | >= | 0.7 | yes |
-| API p95 latency at 50 RPS | 4.343855008482933 | < | 50.0 | yes |
+| Test PR-AUC (weeks 10-12) | 0.8128796984692183 | >= | 0.6 | yes |
+| Test PR-AUC lift vs rules baseline | 2.752511100707149 | >= | 1.5 | yes |
+| Recall at 1% alert rate | 0.713 | >= | 0.7 | yes |
+| API p95 latency at 50 RPS | 4.34329500858439 | < | 50.0 | yes |
 | Drift detection | 1.0 | >= | 1.0 | yes |
 | Point-in-time correctness | 0.0 | <= | 0.0 | yes |
-| Test coverage of src/ | 90.9982174688057 | >= | 80.0 | yes |
+| Test coverage of src/ | 90.56304520222047 | >= | 80.0 | yes |
 
 Headline figures stored in `metrics.headline`:
 
 | Figure | Value |
 | --- | --- |
 | n_transactions | 3000000 |
-| test_pr_auc | 0.9978 |
-| pr_auc_lift | 2.62 |
-| recall_at_1pct | 0.8262 |
+| test_pr_auc | 0.8129 |
+| pr_auc_lift | 2.75 |
+| recall_at_1pct | 0.713 |
 | p95_ms | 4.34 |
 | week_11_max_psi | 20.9958 |
 
@@ -102,4 +106,4 @@ Recompute from `results/test_predictions.csv` (`txn_id`, `week`, `day`, `y_true`
 
 ## Limitations
 
-The transactions are simulated. Labels are available immediately; a real chargeback file would lag. Merchant risk therefore uses past labels with no delay. The patterns are intentionally separable, so the scores are not a forecast of live fraud performance. The latency number is a loopback benchmark on one machine, not a multi-host deployment. The API scores a feature vector that the warehouse has already computed; it does not rebuild SQL features inside the request.
+The transactions are simulated, so the scores are not a forecast of live fraud performance. Merchant risk uses the observed label, including withheld chargebacks and false disputes, and only from earlier transactions. The latency number is a 60-second loopback benchmark on one machine, not a multi-host deployment. The API scores a feature vector that the warehouse has already computed; it does not rebuild SQL features inside the request.
