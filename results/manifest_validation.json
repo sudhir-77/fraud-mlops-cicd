@@ -1,0 +1,14 @@
+{
+  "k8s/deployment.yaml": {
+    "valid": true,
+    "kind": "Deployment"
+  },
+  "k8s/hpa.yaml": {
+    "valid": true,
+    "kind": "HorizontalPodAutoscaler"
+  },
+  "k8s/service.yaml": {
+    "valid": true,
+    "kind": "Service"
+  }
+}

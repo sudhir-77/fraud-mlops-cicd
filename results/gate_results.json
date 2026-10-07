@@ -1,0 +1,20 @@
+{
+  "production": {
+    "passed": true,
+    "pr_auc": 0.8256610606340854,
+    "recall_at_1pct": 0.7216666666666667,
+    "production_pr_auc": 0.8256610606340854,
+    "production_recall_at_1pct": 0.7216666666666667,
+    "pr_auc_below_production": false,
+    "recall_at_1pct_below_production": false
+  },
+  "degraded": {
+    "passed": false,
+    "pr_auc": 0.012,
+    "recall_at_1pct": 0.0,
+    "production_pr_auc": 0.8256610606340854,
+    "production_recall_at_1pct": 0.7216666666666667,
+    "pr_auc_below_production": true,
+    "recall_at_1pct_below_production": true
+  }
+}

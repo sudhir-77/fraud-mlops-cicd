@@ -75,10 +75,17 @@ Figures below are written by `python run.py` from `results/metrics.json`.
 | Test PR-AUC (weeks 10-12) | 0.8128796984692183 | >= | 0.6 | yes |
 | Test PR-AUC lift vs rules baseline | 2.752511100707149 | >= | 1.5 | yes |
 | Recall at 1% alert rate | 0.713 | >= | 0.7 | yes |
-| API p95 latency at 50 RPS | 4.34329500858439 | < | 50.0 | yes |
+| API p95 latency at 50 RPS | 3.9679350040387362 | < | 50.0 | yes |
 | Drift detection | 1.0 | >= | 1.0 | yes |
 | Point-in-time correctness | 0.0 | <= | 0.0 | yes |
-| Test coverage of src/ | 90.56304520222047 | >= | 80.0 | yes |
+| Streaming vs. batch parity | 1.0 | >= | 1.0 | yes |
+| Streaming throughput on CPU | 858670.8987899328 | >= | 2000.0 | yes |
+| Model gate | 1.0 | >= | 1.0 | yes |
+| Drift alert | 1.0 | >= | 1.0 | yes |
+| Manifests | 1.0 | >= | 1.0 | yes |
+| Parent project | 0.0 | <= | 0.02 | yes |
+| Test coverage of src/ and streaming/ | 90.00537345513165 | >= | 75.0 | yes |
+| Test coverage of src/ | 89.62906888720666 | >= | 80.0 | yes |
 
 Headline figures stored in `metrics.headline`:
 
@@ -88,8 +95,9 @@ Headline figures stored in `metrics.headline`:
 | test_pr_auc | 0.8129 |
 | pr_auc_lift | 2.75 |
 | recall_at_1pct | 0.713 |
-| p95_ms | 4.34 |
+| p95_ms | 3.97 |
 | week_11_max_psi | 20.9958 |
+| stream_events_per_s | 858670.9 |
 
 All success criteria passed.
 <!-- RESULTS:END -->

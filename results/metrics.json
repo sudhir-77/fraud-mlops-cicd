@@ -1,5 +1,5 @@
 {
-  "project": "fraud-risk-mlops",
+  "project": "fraud-mlops-cicd",
   "success_criteria": [
     {
       "name": "Test PR-AUC (weeks 10-12)",
@@ -27,7 +27,7 @@
     },
     {
       "name": "API p95 latency at 50 RPS",
-      "value": 4.34329500858439,
+      "value": 3.9679350040387362,
       "op": "<",
       "threshold": 50.0,
       "threshold_high": null,
@@ -50,8 +50,64 @@
       "passed": true
     },
     {
+      "name": "Streaming vs. batch parity",
+      "value": 1.0,
+      "op": ">=",
+      "threshold": 1.0,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
+      "name": "Streaming throughput on CPU",
+      "value": 858670.8987899328,
+      "op": ">=",
+      "threshold": 2000.0,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
+      "name": "Model gate",
+      "value": 1.0,
+      "op": ">=",
+      "threshold": 1.0,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
+      "name": "Drift alert",
+      "value": 1.0,
+      "op": ">=",
+      "threshold": 1.0,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
+      "name": "Manifests",
+      "value": 1.0,
+      "op": ">=",
+      "threshold": 1.0,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
+      "name": "Parent project",
+      "value": 0.0,
+      "op": "<=",
+      "threshold": 0.02,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
+      "name": "Test coverage of src/ and streaming/",
+      "value": 90.00537345513165,
+      "op": ">=",
+      "threshold": 75.0,
+      "threshold_high": null,
+      "passed": true
+    },
+    {
       "name": "Test coverage of src/",
-      "value": 90.56304520222047,
+      "value": 89.62906888720666,
       "op": ">=",
       "threshold": 80.0,
       "threshold_high": null,
@@ -81,28 +137,56 @@
       "fraud_mix_chi2_week10_vs_week11": 682.415766265646
     },
     "serving": {
-      "p50_ms": 3.2383000070694834,
-      "p95_ms": 4.34329500858439,
-      "max_ms": 34.88270001253113,
+      "p50_ms": 2.9408499831333756,
+      "p95_ms": 3.9679350040387362,
+      "max_ms": 37.43620001478121,
       "rps": 50,
       "seconds": 60,
       "n_requests": 3000,
       "mlflow_model": "fraud_payment_scorer",
-      "mlflow_version": "3",
+      "mlflow_version": "1",
       "mlflow_stage": "Production",
-      "mlflow_run_id": "d2ae6fa40fb344ec8e6dd7852ce99295",
+      "mlflow_run_id": "84c014e1c9f14c88afc5c76c5c0d7f2d",
       "promotion": [
         "Staging",
         "Production"
       ]
     },
+    "streaming": {
+      "events": 750000,
+      "seconds": 0.8734429000178352,
+      "events_per_s": 858670.8987899328,
+      "max_abs_score_diff": 0.0,
+      "identical": 1,
+      "drift_only_on_shift": 1,
+      "alert_rate": 0.014542666666666667,
+      "latency_p95_ms": 0.0018488690173512625,
+      "latency_alert": 0,
+      "alert_rate_alert": 0,
+      "prometheus_scored_series": 1
+    },
+    "gate": {
+      "production_passed": 1,
+      "degraded_passed": 0,
+      "production_pr_auc": 0.8256610606340854,
+      "production_recall_at_1pct": 0.7216666666666667,
+      "degraded_pr_auc": 0.012,
+      "degraded_recall_at_1pct": 0.0
+    },
+    "deploy": {
+      "manifests_valid": 1,
+      "dockerfile_lint_ok": 1,
+      "k8s_version": "1.29"
+    },
+    "parent_recompute_max_rel_error": 0.0,
     "headline": {
       "n_transactions": 3000000,
       "test_pr_auc": 0.8129,
       "pr_auc_lift": 2.75,
       "recall_at_1pct": 0.713,
-      "p95_ms": 4.34,
-      "week_11_max_psi": 20.9958
+      "p95_ms": 3.97,
+      "week_11_max_psi": 20.9958,
+      "stream_events_per_s": 858670.9
     },
     "data": {
       "n_transactions": 3000000,
@@ -114,7 +198,8 @@
       "quick": 0
     },
     "pytest_exit_code": 0,
-    "coverage_percent": 90.56304520222047
+    "coverage_percent_src_and_streaming": 90.00537345513165,
+    "coverage_percent": 89.62906888720666
   },
   "baseline": {
     "test_pr_auc": 0.29532295010922244,
@@ -141,7 +226,7 @@
     "gpu": null,
     "python": "3.12.10",
     "os": "Windows-11-10.0.26200-SP0",
-    "peak_rss_gb": 1.3919
+    "peak_rss_gb": 1.3642
   },
-  "runtime_seconds": 147.213
+  "runtime_seconds": 148.914
 }
