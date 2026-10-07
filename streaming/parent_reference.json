@@ -1,0 +1,7 @@
+{
+  "n_transactions": 3000000,
+  "test_pr_auc": 0.8129,
+  "pr_auc_lift": 2.75,
+  "recall_at_1pct": 0.713,
+  "week_11_max_psi": 20.9958
+}

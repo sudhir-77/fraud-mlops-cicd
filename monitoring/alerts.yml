@@ -1,0 +1,21 @@
+groups:
+  - name: fraud-scorer
+    rules:
+      - alert: FraudFeatureDrift
+        expr: fraud_week_psi > 0.2
+        labels:
+          severity: warning
+        annotations:
+          summary: Feature or score PSI is above 0.2 versus the validation week.
+      - alert: FraudScoreLatency
+        expr: histogram_quantile(0.95, rate(fraud_score_latency_seconds_bucket[5m])) >= 0.050
+        labels:
+          severity: warning
+        annotations:
+          summary: Scoring p95 latency is at or above 50 milliseconds.
+      - alert: FraudAlertRate
+        expr: fraud_alert_rate < 0.001 or fraud_alert_rate > 0.05
+        labels:
+          severity: warning
+        annotations:
+          summary: Decision-threshold alert rate left the expected band.
