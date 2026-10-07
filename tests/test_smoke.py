@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -28,6 +29,17 @@ def test_quick_pipeline(tmp_path: Path) -> None:
     splits = metrics["splits"]["transactions"]
     assert splits["train"] > 0 and splits["val"] > 0 and splits["test"] > 0
     assert splits["train"] + splits["val"] + splits["test"] == metrics["metrics"]["headline"]["n_transactions"]
+    stream = pd.read_csv(tmp_path / "results" / "stream_vs_batch.csv")
+    assert list(stream.columns) == ["event_id", "batch_score", "stream_score"]
+    assert len(stream) == len(predictions)
+    assert (stream["batch_score"] - stream["stream_score"]).abs().max() == 0
+    gate = json.loads((tmp_path / "results" / "gate_results.json").read_text(encoding="utf-8"))
+    assert gate["production"]["passed"] is True
+    assert gate["degraded"]["passed"] is False
+    manifests = json.loads((tmp_path / "results" / "manifest_validation.json").read_text(encoding="utf-8"))
+    kinds = {item["kind"] for item in manifests.values()}
+    assert {"Deployment", "Service", "HorizontalPodAutoscaler"} <= kinds
+    assert all(item["valid"] for item in manifests.values())
     drift = pd.read_csv(tmp_path / "results" / "drift_weekly.csv")
 
     def psi(week: int, feature: str) -> float:

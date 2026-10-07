@@ -44,7 +44,13 @@ from src.features import build_features
 from src.loadtest import serve_and_measure, summarize_latencies
 from src.metrics import criterion, pr_auc, recall_at_alert_rate, select_threshold
 from src.pit import count_future_leaks
-from src.plots import mean_abs_shap, save_drift_bars, save_pr_curve, save_score_histograms, save_shap_bars
+from src.plots import (
+    mean_abs_shap,
+    save_drift_bars,
+    save_pr_curve,
+    save_score_histograms,
+    save_shap_bars,
+)
 from src.registry import promote_model
 from src.rules import rule_scores, tune_rules
 from src.simulate import simulate, verify_transactions, write_transactions
@@ -201,6 +207,7 @@ def run_pipeline(
     val_weeks = [int(w) for w in saved["val_weeks"]]
     test_weeks = [int(w) for w in saved["test_weeks"]]
 
+    platform: dict = {}
     db_path = data_dir / "warehouse.duckdb"
     for stale in (db_path, Path(str(db_path) + ".wal")):
         if stale.exists():
@@ -302,8 +309,47 @@ def run_pipeline(
             encoding="utf-8",
         )
         fraud_rows = con.execute("SELECT COUNT(*), SUM(is_fraud) FROM features").fetchone()
+        log("streaming replay of the test weeks")
+        from streaming.gate import allow_promotion, evaluate_production_and_degraded
+        from streaming.replay import run_stream_replay
+
+        platform["stream"] = run_stream_replay(
+            con,
+            booster,
+            test_frame,
+            val_frame["model_score"].to_numpy(dtype=np.float64),
+            threshold,
+            results,
+        )
+        log("model-quality gate on the validation week")
+        platform["gate"] = evaluate_production_and_degraded(
+            y_val,
+            val_model,
+            meta_val["day"].astype(str).to_numpy(),
+            meta_val["txn_id"].to_numpy(),
+        )
+        _write_json(results / "gate_results.json", platform["gate"])
+        if not allow_promotion(platform["gate"]["production"]):
+            raise RuntimeError("production model failed the quality gate")
+        if allow_promotion(platform["gate"]["degraded"]):
+            raise RuntimeError("degraded model was not blocked")
     finally:
         con.close()
+
+    from streaming.dockerlint import lint_dockerfile
+    from streaming.manifests import manifests_ok, validate_manifest_dir
+
+    package_root = Path(__file__).resolve().parents[1]
+    log("validating Kubernetes manifests and the Dockerfile")
+    manifest_report = validate_manifest_dir(package_root / "k8s")
+    _write_json(results / "manifest_validation.json", manifest_report)
+    platform["manifests_ok"] = manifests_ok(manifest_report)
+    docker_problems = lint_dockerfile(package_root / "Dockerfile")
+    platform["dockerfile_problems"] = docker_problems
+    if docker_problems:
+        raise RuntimeError("Dockerfile lint failed: " + "; ".join(docker_problems))
+    if not platform["manifests_ok"]:
+        raise RuntimeError("Kubernetes manifests failed schema validation for v1.29")
 
     payloads = []
     for i, row in enumerate(examples):
@@ -372,6 +418,36 @@ def run_pipeline(
     week11 = psi_table[psi_table["week"] == 11]
     week11_top = week11.sort_values("psi", ascending=False).iloc[0]
     drift_ok = bool(alerts.get(11, False) and not alerts.get(10, True) and not alerts.get(12, True))
+    stream = platform["stream"]
+    gate = platform["gate"]
+    headline = {
+        "n_transactions": int(fraud_rows[0]),
+        "test_pr_auc": round(scored["test_pr_auc"], 4),
+        "pr_auc_lift": round(scored["pr_auc_lift"], 2),
+        "recall_at_1pct": round(scored["recall_at_1pct"], 4),
+        "p95_ms": round(latency_stats["p95_ms"], 2),
+        "week_11_max_psi": round(float(week11["psi"].max()), 4),
+        "stream_events_per_s": round(float(stream["events_per_s"]), 2),
+    }
+    from streaming.parent_check import load_parent_reference, max_relative_error, relative_error
+
+    reread = _metrics_from_csv(test_path)
+    psi_reread = pd.read_csv(psi_path)
+    lat_reread = summarize_latencies(pd.read_csv(latency_path)["latency_ms"].to_numpy())
+    artifact_error = max(
+        relative_error(reread["test_pr_auc"], scored["test_pr_auc"]),
+        relative_error(reread["recall_at_1pct"], scored["recall_at_1pct"]),
+        relative_error(
+            float(psi_reread.loc[psi_reread["week"] == 11, "psi"].max()),
+            float(week11["psi"].max()),
+        ),
+        relative_error(lat_reread["p95_ms"], latency_stats["p95_ms"]),
+    )
+    if quick:
+        parent_error = artifact_error
+    else:
+        parent_error = max(artifact_error, max_relative_error(headline, load_parent_reference(root)))
+    gate_ok = bool(gate["production"]["passed"]) and not bool(gate["degraded"]["passed"])
     criteria = [
         criterion("Test PR-AUC (weeks 10-12)", scored["test_pr_auc"], ">=", 0.60),
         criterion("Test PR-AUC lift vs rules baseline", scored["pr_auc_lift"], ">=", 1.5),
@@ -379,6 +455,12 @@ def run_pipeline(
         criterion("API p95 latency at 50 RPS", latency_stats["p95_ms"], "<", 50.0),
         criterion("Drift detection", 1.0 if drift_ok else 0.0, ">=", 1.0),
         criterion("Point-in-time correctness", float(pit_violations), "<=", 0.0),
+        criterion("Streaming vs. batch parity", 1.0 if stream["identical"] else 0.0, ">=", 1.0),
+        criterion("Streaming throughput on CPU", float(stream["events_per_s"]), ">=", 2000.0),
+        criterion("Model gate", 1.0 if gate_ok else 0.0, ">=", 1.0),
+        criterion("Drift alert", 1.0 if stream["drift_only_on_shift"] else 0.0, ">=", 1.0),
+        criterion("Manifests", 1.0 if platform["manifests_ok"] else 0.0, ">=", 1.0),
+        criterion("Parent project", float(parent_error), "<=", 0.02),
     ]
     metrics = {
         "project": PROJECT_SLUG,
@@ -418,14 +500,34 @@ def run_pipeline(
                 "mlflow_run_id": promotion["run_id"],
                 "promotion": ["Staging", "Production"],
             },
-            "headline": {
-                "n_transactions": int(fraud_rows[0]),
-                "test_pr_auc": round(scored["test_pr_auc"], 4),
-                "pr_auc_lift": round(scored["pr_auc_lift"], 2),
-                "recall_at_1pct": round(scored["recall_at_1pct"], 4),
-                "p95_ms": round(latency_stats["p95_ms"], 2),
-                "week_11_max_psi": round(float(week11["psi"].max()), 4),
+            "streaming": {
+                "events": int(stream["events"]),
+                "seconds": float(stream["seconds"]),
+                "events_per_s": float(stream["events_per_s"]),
+                "max_abs_score_diff": float(stream["max_abs_diff"]),
+                "identical": int(bool(stream["identical"])),
+                "drift_only_on_shift": int(bool(stream["drift_only_on_shift"])),
+                "alert_rate": float(stream["alert_rate"]),
+                "latency_p95_ms": float(stream["latency_p95_ms"]),
+                "latency_alert": int(bool(stream["latency_alert"])),
+                "alert_rate_alert": int(bool(stream["alert_rate_alert"])),
+                "prometheus_scored_series": int("fraud_scored_events_total" in stream["prometheus"]),
             },
+            "gate": {
+                "production_passed": int(bool(gate["production"]["passed"])),
+                "degraded_passed": int(bool(gate["degraded"]["passed"])),
+                "production_pr_auc": float(gate["production"]["pr_auc"]),
+                "production_recall_at_1pct": float(gate["production"]["recall_at_1pct"]),
+                "degraded_pr_auc": float(gate["degraded"]["pr_auc"]),
+                "degraded_recall_at_1pct": float(gate["degraded"]["recall_at_1pct"]),
+            },
+            "deploy": {
+                "manifests_valid": int(bool(platform["manifests_ok"])),
+                "dockerfile_lint_ok": 1,
+                "k8s_version": "1.29",
+            },
+            "parent_recompute_max_rel_error": float(parent_error),
+            "headline": headline,
             "data": {
                 "n_transactions": int(fraud_rows[0]),
                 "n_fraud": int(fraud_rows[1]),
@@ -458,6 +560,7 @@ def run_pipeline(
         "test PR-AUC "
         f"{scored['test_pr_auc']:.4f} lift {scored['pr_auc_lift']:.3f} "
         f"recall {scored['recall_at_1pct']:.4f} p95 {latency_stats['p95_ms']:.2f} ms "
-        f"drift_ok {drift_ok}"
+        f"drift_ok {drift_ok} stream {stream['events_per_s']:.1f} events/s "
+        f"parity {stream['identical']} gate {gate_ok}"
     )
     return metrics

@@ -6,7 +6,6 @@ import argparse
 import gc
 import json
 import os
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -17,11 +16,6 @@ os.environ["MKL_NUM_THREADS"] = "4"
 os.environ["OPENBLAS_NUM_THREADS"] = "4"
 os.environ["NUMEXPR_NUM_THREADS"] = "4"
 os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "false"
-
-
-def _coverage_percent(path: Path) -> float:
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    return float(payload["totals"]["percent_covered"])
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,29 +43,21 @@ def main(argv: list[str] | None = None) -> int:
     started = time.perf_counter()
     metrics = run_pipeline(root, quick=args.quick, device=args.device)
     coverage = None
+    combined = None
     if not args.quick:
         # A fresh interpreter so coverage starts before src is imported.
-        # In-process pytest cannot instrument modules this run already loaded.
         gc.collect()
+        from streaming.ci import run_commands, split_coverage
+
         cov_path = root / "results" / "coverage.json"
-        status = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "pytest",
-                str(root / "tests"),
-                "-q",
-                "--cov=src",
-                "--cov-report=term-missing",
-                f"--cov-report=json:{cov_path}",
-            ],
-            cwd=root,
-            check=False,
-        ).returncode
-        if not cov_path.exists():
-            raise RuntimeError(f"pytest did not write coverage (exit {status})")
-        coverage = _coverage_percent(cov_path)
+        if cov_path.exists():
+            cov_path.unlink()
+        status = run_commands(root)
         metrics["metrics"]["pytest_exit_code"] = int(status)
+        if cov_path.exists():
+            coverage, combined = split_coverage(cov_path)
+        else:
+            coverage, combined = 0.0, 0.0
     host = host_info()
     metrics = finalize_metrics(
         metrics,
@@ -79,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         peak.stop(),
         round(time.perf_counter() - started, 3),
         coverage,
+        combined_coverage_percent=combined,
     )
     results = root / "results" / "metrics.json"
     results.write_text(json.dumps(metrics, indent=2), encoding="utf-8")

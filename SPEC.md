@@ -1,67 +1,72 @@
-# Real-Time Payment Fraud Scoring with Feature Pipelines, Model Registry, and Drift Monitoring
+# Fraud Scoring MLOps - Streaming Scoring, CI Model Gates, Monitoring Alerts, and Kubernetes Manifests
 
-`fraud-risk-mlops` · new project · estimated build effort: 5 h
+`fraud-mlops-cicd` · new project · estimated build effort: 4 h
 
 ## Problem
 
-Fintech risk teams need fraud models that are fast to serve, explainable, and monitored after launch. This project simulates payment transactions with entity IDs (customers, cards, devices, merchants) and injected fraud patterns (card testing, account takeover, mule merchants). It builds an ETL plus point-in-time feature pipeline in SQL (velocity, device reuse, merchant risk), trains a LightGBM model against a rules baseline, and picks the decision threshold by expected cost. The model is registered in MLflow and served through FastAPI. A drift monitor (PSI and score-distribution checks) runs over simulated future weeks with an injected shift.
+Extends the verified fraud-scoring service (fraud-risk-mlops) with the production-engineering layer an ML platform team owns: an event-streaming scoring path (Kafka-compatible consumer interface with an in-process broker for local runs), a CI pipeline definition that runs lint, tests, and a model-quality gate before promotion, monitoring with drift and latency alert rules, and Kubernetes deployment manifests validated against the Kubernetes schema. All previous tests and metrics must still pass.
 
 ## Target jobs and skills
 
-- **BABYLIST — Staff Machine Learning Engineer** (`70ade98eb887`): covers 44% of the JD's weighted top skills (Python, MLOps, Model Monitoring, Gradient Boosting, Feature Engineering)
-- **DraftKings — Senior Machine Learning Engineer, FinTech** (`ada7c088467b`): covers 95% of the JD's weighted top skills (Python, SQL, ETL, Feature Engineering, MLOps, Model Monitoring, Git, Data Warehousing, Anomaly Detection, Classification, FastAPI)
-- **Brex — Data Scientist II, Applied ML** (`1feefa5b66da`): covers 65% of the JD's weighted top skills (Python, SQL, FastAPI, MLOps, Anomaly Detection, Classification, Gradient Boosting)
+- **bet365 — Machine Learning Engineer** (`60fd0bee3d22`): covers 88% of the JD's weighted top skills (Python, MLOps, Docker, Kubernetes, CI/CD, Model Monitoring, Kafka, Git, FastAPI)
 
-Skills/tools this project demonstrates: Python, SQL, ETL, Feature Engineering, Classification, Gradient Boosting, LightGBM, Anomaly Detection, MLOps, MLflow, FastAPI, Model Monitoring, Data Warehousing, Model Evaluation, Git
+Skills/tools this project demonstrates: Python, MLOps, Model Monitoring, CI/CD, Kafka, Kubernetes, Docker, FastAPI, MLflow, Git, Anomaly Detection, Classification, Gradient Boosting
 
 ## Data
 
-- **Dataset:** Simulated payment transactions (generator included; design follows the published PaySim/BankSim approach) — n/a (generated locally by src/simulate.py)
-- **License/terms:** MIT. The generator and the synthetic records are project code under the MIT License.
-- **Size used:** 3M transactions over 12 weeks, ~150k customers, ~1.2% fraud
-- **Plan:** Out-of-time split (weeks 1-8 train, 9 validation, 10-12 test/monitoring); week 11 gets an injected fraud-pattern shift.
+- **Dataset:** Same simulated card-transaction stream as fraud-risk-mlops — projects/library/fraud-risk-mlops
+- **License/terms:** Generated in code (project-owned)
+- **Size used:** 3,000,000 simulated transactions (parent splits reused)
+- **Plan:** Streaming replay uses the parent project's out-of-time test weeks in event-time order.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A[simulate.py] --> B[Raw events -> DuckDB star schema]
-  B --> C[Point-in-time SQL features: velocity, device reuse, merchant risk]
-  C --> D[Rules baseline]
-  C --> E[LightGBM + cost-based threshold]
-  E --> F[MLflow registry: staging -> production]
-  F --> G[FastAPI /score with SHAP reason codes]
-  G --> H[Load test: p95 latency at 50 RPS]
-  C & E --> I[Drift monitor: PSI per feature + score drift, weekly]
-  H & I --> J[results/metrics.json]
+  A[Transaction event replay] --> B[Kafka-compatible consumer interface]
+  B --> C[Feature computation, point-in-time]
+  C --> D[Model scoring service]
+  D --> E[Alerts + metrics: PSI drift, latency, alert-rate rules]
+  F[CI pipeline: ruff, pytest, model gate] --> G[MLflow promotion]
+  G --> D
+  D --> H[Kubernetes Deployment/Service/HPA manifests, schema-validated]
 ```
 
 ## Tech stack
 
-Python 3.11, DuckDB, LightGBM, scikit-learn, MLflow, FastAPI, uvicorn, httpx, SHAP, pytest
+Python 3.11, FastAPI, MLflow, LightGBM, kafka-python interface + in-process broker, Prometheus client, kubernetes-validate, ruff, pytest
 
 ## Deliverables
 
-- Simulator with documented fraud patterns and tests of its invariants
-- Star-schema warehouse and point-in-time-correct feature SQL (tests prove there is no future leakage)
-- LightGBM model, cost-based threshold, MLflow registry with a promotion step
-- FastAPI scoring service with reason codes, plus a load-test script
-- Drift monitoring job with alert rules and a weekly report
+- streaming/ package: consumer interface, event-time replay, scoring loop with exactly-once bookkeeping in tests
+- CI workflow file (GitHub Actions YAML) plus a local runner in run.py that executes the same steps
+- Model-quality gate that blocks promotion if PR-AUC or recall@1% drops below the current production model
+- Monitoring: Prometheus metrics, drift/latency/alert-rate rules with tests; Kubernetes manifests validated by schema; Dockerfile linted
 
 ## Success criteria (all must hold on a from-scratch `python run.py`)
 
 | Metric | Threshold | How it is measured |
 |---|---|---|
-| Test PR-AUC (weeks 10-12) | >= 0.60 and >= 1.5x the rules baseline | out-of-time test |
-| Recall at 1% alert rate | >= 0.70 | top 1% of scores per day |
-| API p95 latency at 50 RPS | < 50 ms (local) | load-test script |
-| Drift detection | alarm fires in week 11 (injected shift) and not in weeks 10 or 12 | PSI > 0.2 rule |
-| Point-in-time correctness | 0 features computed from events after the scored transaction | dedicated tests |
-| Test coverage of src/ | >= 80% | pytest --cov |
+| Streaming vs. batch parity | streamed scores identical to batch scores for all test-week events | replay test |
+| Streaming throughput on CPU | >= 2,000 events/s through the scoring loop | timed replay |
+| Model gate | gate blocks a deliberately degraded model and passes the production model | pytest |
+| Drift alert | fires only in the week with the injected fraud-pattern shift (as in the parent) | replay |
+| Manifests | all Kubernetes manifests validate against the schema for v1.29 | kubernetes-validate |
+| Parent project | all previous tests pass and headline metrics reproduce within 2% | re-run |
+| Test coverage of src/ and streaming/ | >= 75% | pytest --cov |
+
+## Evaluation artifacts (required; the evaluator recomputes metrics from these)
+
+- Keep producing every parent artifact (results/metrics.json, test_predictions.csv, val_predictions.csv, loadtest_latencies.csv, drift_weekly.csv) from the same run.py
+- results/stream_vs_batch.csv with columns event_id, batch_score, stream_score - every out-of-time test-week event
+- results/stream_throughput.json with keys events, seconds
+- results/gate_results.json with keys production and degraded, each containing at least passed (bool) and the gate metrics
+- results/stream_drift_weekly.csv with columns week, psi, alert (0/1), shifted (0/1)
+- results/manifest_validation.json mapping each manifest file to {valid: bool, kind: str}; must include Deployment, Service, HorizontalPodAutoscaler
 
 ## Baseline
 
-Hand-written rules (amount and velocity thresholds, new device + high amount) tuned on training weeks.
+The parent project's batch scoring path.
 
 ## Constraints
 
@@ -71,10 +76,10 @@ Hand-written rules (amount and velocity thresholds, new device + high amount) tu
 - Fixed random seeds; every reported number is written by code to results/metrics.json (never typed by hand).
 - Test split is created once, saved, and never used for training, tuning, or threshold selection.
 - Data download is scripted (Python requests), cached under data/, and verified by checksum or row count.
-- README and bullets state that the transactions are simulated.
+- Docker, Kubernetes clusters, Kafka brokers, and GCP are not available: manifests and the Dockerfile are validated statically, the broker is in-process; never claim a cluster, container, or real Kafka deployment.
 
 ## Draft resume bullets (placeholders are filled only with reproduced metrics)
 
-- Built a point-in-time-correct SQL feature pipeline and LightGBM fraud model on 3M simulated transactions, reaching [PRAUC] PR-AUC ([LIFT]x a rules baseline) on out-of-time weeks
-- Served the model through FastAPI with SHAP reason codes at [P95_MS] ms p95 latency under 50 RPS, with versions promoted through an MLflow model registry
-- Added PSI-based drift monitoring that flagged an injected fraud-pattern shift in the week it began without false alarms in stable weeks
+- Added a streaming scoring path to a fraud model with batch-identical scores at [EPS] events/s and a drift alert that fired only on the shifted week
+- Wrote a CI pipeline with lint, tests, and a model-quality gate that blocks promotion when PR-AUC or recall@1% regresses
+- Defined Kubernetes Deployment/Service/HPA manifests validated against the schema, with Prometheus latency and drift alert rules

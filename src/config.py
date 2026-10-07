@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 SEED = 42
 N_WEEKS = 12
 SHIFT_WEEK = 11
@@ -48,7 +47,7 @@ MODEL_FEATURES = [
 MONITOR_FEATURES = MODEL_FEATURES + ["acq_region"]
 
 MODEL_NAME = "fraud_payment_scorer"
-PROJECT_SLUG = "fraud-risk-mlops"
+PROJECT_SLUG = "fraud-mlops-cicd"
 
 
 @dataclass(frozen=True)

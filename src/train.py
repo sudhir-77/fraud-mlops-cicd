@@ -6,8 +6,8 @@ validation weeks. It has no test argument.
 
 from __future__ import annotations
 
-import numpy as np
 import lightgbm as lgb
+import numpy as np
 
 from src.config import SEED, TrainConfig
 

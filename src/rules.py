@@ -11,7 +11,6 @@ from dataclasses import dataclass
 import numpy as np
 from sklearn.metrics import average_precision_score
 
-
 AMOUNT_W = 0.40
 VEL_W = 0.45
 NEW_W = 0.70
