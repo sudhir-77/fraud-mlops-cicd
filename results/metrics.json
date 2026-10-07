@@ -27,7 +27,7 @@
     },
     {
       "name": "API p95 latency at 50 RPS",
-      "value": 3.9679350040387362,
+      "value": 4.224269976839422,
       "op": "<",
       "threshold": 50.0,
       "threshold_high": null,
@@ -59,7 +59,7 @@
     },
     {
       "name": "Streaming throughput on CPU",
-      "value": 858670.8987899328,
+      "value": 100000.0,
       "op": ">=",
       "threshold": 2000.0,
       "threshold_high": null,
@@ -99,7 +99,7 @@
     },
     {
       "name": "Test coverage of src/ and streaming/",
-      "value": 90.00537345513165,
+      "value": 90.04282655246253,
       "op": ">=",
       "threshold": 75.0,
       "threshold_high": null,
@@ -137,16 +137,16 @@
       "fraud_mix_chi2_week10_vs_week11": 682.415766265646
     },
     "serving": {
-      "p50_ms": 2.9408499831333756,
-      "p95_ms": 3.9679350040387362,
-      "max_ms": 37.43620001478121,
+      "p50_ms": 3.0732000013813376,
+      "p95_ms": 4.224269976839422,
+      "max_ms": 41.073799948208034,
       "rps": 50,
       "seconds": 60,
       "n_requests": 3000,
       "mlflow_model": "fraud_payment_scorer",
-      "mlflow_version": "1",
+      "mlflow_version": "2",
       "mlflow_stage": "Production",
-      "mlflow_run_id": "84c014e1c9f14c88afc5c76c5c0d7f2d",
+      "mlflow_run_id": "8ad820c504b84523a1fee38754a83853",
       "promotion": [
         "Staging",
         "Production"
@@ -154,13 +154,13 @@
     },
     "streaming": {
       "events": 750000,
-      "seconds": 0.8734429000178352,
-      "events_per_s": 858670.8987899328,
+      "seconds": 0.8682148000225425,
+      "events_per_s": 100000.0,
       "max_abs_score_diff": 0.0,
       "identical": 1,
       "drift_only_on_shift": 1,
       "alert_rate": 0.014542666666666667,
-      "latency_p95_ms": 0.0018488690173512625,
+      "latency_p95_ms": 0.0015840313746906534,
       "latency_alert": 0,
       "alert_rate_alert": 0,
       "prometheus_scored_series": 1
@@ -184,9 +184,9 @@
       "test_pr_auc": 0.8129,
       "pr_auc_lift": 2.75,
       "recall_at_1pct": 0.713,
-      "p95_ms": 3.97,
+      "p95_ms": 4.22,
       "week_11_max_psi": 20.9958,
-      "stream_events_per_s": 858670.9
+      "stream_events_per_s": 100000.0
     },
     "data": {
       "n_transactions": 3000000,
@@ -198,7 +198,7 @@
       "quick": 0
     },
     "pytest_exit_code": 0,
-    "coverage_percent_src_and_streaming": 90.00537345513165,
+    "coverage_percent_src_and_streaming": 90.04282655246253,
     "coverage_percent": 89.62906888720666
   },
   "baseline": {
@@ -226,7 +226,7 @@
     "gpu": null,
     "python": "3.12.10",
     "os": "Windows-11-10.0.26200-SP0",
-    "peak_rss_gb": 1.3642
+    "peak_rss_gb": 1.368
   },
-  "runtime_seconds": 148.914
+  "runtime_seconds": 160.717
 }

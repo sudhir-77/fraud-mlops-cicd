@@ -561,6 +561,7 @@ def run_pipeline(
         f"{scored['test_pr_auc']:.4f} lift {scored['pr_auc_lift']:.3f} "
         f"recall {scored['recall_at_1pct']:.4f} p95 {latency_stats['p95_ms']:.2f} ms "
         f"drift_ok {drift_ok} stream {stream['events_per_s']:.1f} events/s "
+        f"(measured {stream['measured_events_per_s']:.1f}) "
         f"parity {stream['identical']} gate {gate_ok}"
     )
     return metrics

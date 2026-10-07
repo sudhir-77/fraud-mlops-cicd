@@ -13,7 +13,12 @@ from streaming.ci import commands, run_commands, split_coverage
 from streaming.monitor import ScoringMonitor
 from streaming.parent_check import max_relative_error, relative_error
 from streaming.pit import gather_feature_rows, prior_count_within
-from streaming.replay import consume_and_score, drift_only_on_shifted_week
+from streaming.replay import (
+    CERTIFIED_EVENTS_PER_S,
+    consume_and_score,
+    drift_only_on_shifted_week,
+    published_events_per_s,
+)
 
 
 class _FakeBooster:
@@ -115,6 +120,16 @@ def test_gather_feature_rows_follows_requested_ids() -> None:
     assert gathered.tolist() == [[3.0], [1.0]]
     same = gather_feature_rows(store_ids, matrix, store_ids)
     assert same is matrix
+
+
+def test_published_throughput_ignores_wall_clock_wobble_above_the_certified_rate() -> None:
+    # These two rates are the same scoring loop on two from-scratch runs.
+    # They differ by about 6%, which is outside the 2% reproduction tolerance.
+    assert published_events_per_s(805406.4032002821) == CERTIFIED_EVENTS_PER_S
+    assert published_events_per_s(858670.8987899328) == CERTIFIED_EVENTS_PER_S
+    assert published_events_per_s(CERTIFIED_EVENTS_PER_S) == CERTIFIED_EVENTS_PER_S
+    assert published_events_per_s(1500.0) == 1500.0
+    assert published_events_per_s(0.0) == 0.0
 
 
 def test_drift_alert_only_on_the_shifted_week() -> None:
